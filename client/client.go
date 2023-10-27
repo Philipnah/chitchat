@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"sort"
+	"strconv"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -28,6 +31,10 @@ func main() {
 	conn, _ := grpc.Dial(":5400", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	defer conn.Close()
 
+	logFile, _ := os.Create("logfile" + strconv.Itoa(rand.Int()) + ".log")
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
 	client := proto.NewChitChatClient(conn)
 
 	Connect(client)
@@ -43,7 +50,7 @@ func main() {
 			fmt.Println(err)
 		}
 
-		msg := CreateMessage(messageText)
+		msg := CreateMessage(strings.Trim(messageText, "\n"))
 		stream.Send(&msg)
 	}
 }
@@ -66,7 +73,7 @@ func Connect(client proto.ChitChatClient) {
 	currentTimestamp = int(connection.Timestamp)
 }
 
-func Receive(stream proto.ChitChat_MessagesClient) { // maybe pointer stuff?
+func Receive(stream proto.ChitChat_MessagesClient) {
 	for {
 		in, err := stream.Recv()
 		if err == io.EOF {
@@ -77,6 +84,7 @@ func Receive(stream proto.ChitChat_MessagesClient) { // maybe pointer stuff?
 			fmt.Println(err)
 			return
 		}
+		log.Println(FormatMessage(in))
 		messagesReceived = append(messagesReceived, *in)
 		UpdateTimestamp(int(in.Timestamp))
 		PrintMessages()
@@ -95,8 +103,12 @@ func PrintMessages() {
 
 	for i := 0; i < len(messagesReceived); i++ {
 		message := &messagesReceived[i]
-		log.Println("Event(", message.Timestamp, ",", message.ClientId, ")", message.Message)
+		fmt.Println(FormatMessage(message))
 	}
+}
+
+func FormatMessage(message *proto.Message) string {
+	return ("Event(" + strconv.Itoa(int(message.Timestamp)) + ", " + strconv.Itoa(int(message.ClientId)) + ") " + message.Message)
 }
 
 func ClearTerminal() {

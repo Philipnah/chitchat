@@ -26,10 +26,13 @@ type Server struct {
 
 var clientsConnected int
 var currentTimestamp int
+var id int
 var clientStreams []proto.ChitChat_MessagesServer
 
 func (server *Server) Messages(stream proto.ChitChat_MessagesServer) error {
 	clientStreams = append(clientStreams, stream)
+
+	stream.Context()
 
 	go func() {
 		for {
@@ -40,7 +43,11 @@ func (server *Server) Messages(stream proto.ChitChat_MessagesServer) error {
 			}
 			// TODO If error is context cancelled, then display disconnect message
 			if err != nil {
-				fmt.Println(err)
+				if err.Error() == "rpc error: code = Canceled desc = context canceled" {
+					ClientDisconnected(stream)
+				} else {
+					fmt.Println(err)
+				}
 				return
 			}
 			if err == nil {
@@ -52,6 +59,15 @@ func (server *Server) Messages(stream proto.ChitChat_MessagesServer) error {
 	SendWelcomeMessage(clientsConnected)
 	time.Sleep(time.Hour) // keep alive for one hour
 	return nil
+}
+
+func ClientDisconnected(stream proto.ChitChat_MessagesServer) {
+	for i := 0; i < len(clientStreams); i++ {
+		if stream == clientStreams[i] {
+			SendGoodbyeMessage(int(i + 1))
+			break
+		}
+	}
 }
 
 func (s *Server) Connect(ctx context.Context, in *proto.Empty) (*proto.ConnectMessage, error) {
@@ -76,9 +92,18 @@ func UpdateTimestamp(newTime int) {
 
 func SendWelcomeMessage(clientId int) {
 	msg := &proto.Message{
-		ClientId:  0,
+		ClientId:  int64(id),
 		Timestamp: int64(currentTimestamp),
-		Message:   "Client " + strconv.Itoa(clientId) + " joined",
+		Message:   "Participant " + strconv.Itoa(clientId) + " joined Chitty-Chat at Lamport time (" + strconv.Itoa(currentTimestamp) + ", " + strconv.Itoa(id) + ")",
+	}
+	DistributeMessages(msg)
+}
+
+func SendGoodbyeMessage(clientId int) {
+	msg := &proto.Message{
+		ClientId:  int64(id),
+		Timestamp: int64(currentTimestamp),
+		Message:   "Participant " + strconv.Itoa(clientId) + " left Chitty-Chat at Lamport time (" + strconv.Itoa(currentTimestamp) + ", " + strconv.Itoa(id) + ")",
 	}
 	DistributeMessages(msg)
 }
