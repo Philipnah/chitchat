@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
+	"sort"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -19,8 +21,10 @@ import (
 
 var id int
 var currentTimestamp int
+var messagesReceived []proto.Message
 
 func main() {
+	messagesReceived = make([]proto.Message, 0)
 	conn, _ := grpc.Dial(":5400", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	defer conn.Close()
 
@@ -73,10 +77,32 @@ func Receive(stream proto.ChitChat_MessagesClient) { // maybe pointer stuff?
 			fmt.Println(err)
 			return
 		}
-		log.Println(in.ClientId, in.Timestamp, in.Message) // maybe print all previous messages aswell
-
+		messagesReceived = append(messagesReceived, *in)
 		UpdateTimestamp(int(in.Timestamp))
+		PrintMessages()
 	}
+}
+
+func PrintMessages() {
+	ClearTerminal()
+	sort.SliceStable(messagesReceived, func(i, j int) bool {
+		if messagesReceived[i].Timestamp != messagesReceived[j].Timestamp {
+			return messagesReceived[i].Timestamp < messagesReceived[j].Timestamp
+		} else {
+			return messagesReceived[i].ClientId < messagesReceived[j].ClientId
+		}
+	})
+
+	for i := 0; i < len(messagesReceived); i++ {
+		message := &messagesReceived[i]
+		log.Println("Event(", message.Timestamp, ",", message.ClientId, ")", message.Message)
+	}
+}
+
+func ClearTerminal() {
+	cmd := exec.Command("clear")
+	cmd.Stdout = os.Stdout
+	cmd.Run()
 }
 
 func UpdateTimestamp(newTime int) {

@@ -38,6 +38,7 @@ func (server *Server) Messages(stream proto.ChitChat_MessagesServer) error {
 				// read done.
 				fmt.Println("read done")
 			}
+			// TODO If error is context cancelled, then display disconnect message
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -48,6 +49,7 @@ func (server *Server) Messages(stream proto.ChitChat_MessagesServer) error {
 		}
 	}()
 
+	SendWelcomeMessage(clientsConnected)
 	time.Sleep(time.Hour) // keep alive for one hour
 	return nil
 }
@@ -73,7 +75,6 @@ func UpdateTimestamp(newTime int) {
 }
 
 func SendWelcomeMessage(clientId int) {
-	UpdateTimestamp(currentTimestamp)
 	msg := &proto.Message{
 		ClientId:  0,
 		Timestamp: int64(currentTimestamp),
