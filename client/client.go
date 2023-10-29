@@ -45,14 +45,33 @@ func main() {
 
 	for {
 		reader := bufio.NewReader(os.Stdin)
-		messageText, err := reader.ReadString('\n')
+		rawMessageText, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Println(err)
 		}
 
-		msg := CreateMessage(strings.Trim(messageText, "\n"))
-		stream.Send(&msg)
+		messageText := strings.Trim(rawMessageText, "\n")
+
+		messageError := CheckMessageRequirements(messageText)
+		if messageError == "toolong" {
+			fmt.Println("Your message was too long")
+		} else if messageError == "tooshort" {
+			fmt.Println("Your message was too short")
+		} else {
+			msg := CreateMessage(messageText)
+			stream.Send(&msg)
+		}
 	}
+}
+
+func CheckMessageRequirements(msgText string) string {
+	if len(msgText) > 128 {
+		return "toolong"
+	}
+	if len(msgText) <= 0 {
+		return "tooshort"
+	}
+	return ""
 }
 
 func CreateMessage(message string) proto.Message {
