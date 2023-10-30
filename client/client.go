@@ -52,26 +52,15 @@ func main() {
 
 		messageText := strings.Trim(rawMessageText, "\n")
 
-		messageError := CheckMessageRequirements(messageText)
-		if messageError == "toolong" {
+		if len(messageText) > 128 {
 			fmt.Println("Your message was too long")
-		} else if messageError == "tooshort" {
+		} else if len(messageText) <= 0 {
 			fmt.Println("Your message was too short")
 		} else {
 			msg := CreateMessage(messageText)
 			stream.Send(&msg)
 		}
 	}
-}
-
-func CheckMessageRequirements(msgText string) string {
-	if len(msgText) > 128 {
-		return "toolong"
-	}
-	if len(msgText) <= 0 {
-		return "tooshort"
-	}
-	return ""
 }
 
 func CreateMessage(message string) proto.Message {
